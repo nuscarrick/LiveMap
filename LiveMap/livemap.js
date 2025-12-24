@@ -312,8 +312,8 @@ body {
           // External version is newer and notification should be shown
           if (shouldShowNotification()) {
             console.log(`${plugin_name}: Plugin update available: ${plugin_version} -> ${externalplugin_version}`);
-			sendToast('warning important', `${plugin_name}`, `Update available:<br>${plugin_version} -> ${externalplugin_version}`, false, false);
-            }
+			sendToast(t('toast.warningImportant'), `${plugin_name}`, `${t('plugin.updateAvailable')}:<br>${plugin_version} -> ${externalplugin_version}`, false, false);
+          }
         } else {
           // Versions are the same
           console.log(`${plugin_name}: The local version matches the plugin version.`);
@@ -447,7 +447,7 @@ initializeWrapperPosition();
     function createToggleButton() {
         const toggleButton = document.createElement('div');
 		toggleButton.classList.add('tooltip2'); // Klasse hinzufügen
-		toggleButton.setAttribute('data-tooltip', 'Toggle Station List'); // Daten-Attribut setzen
+		toggleButton.setAttribute('data-tooltip', t('plugin.livemapPlugin.toggleStationList')); // Daten-Attribut setzen
         toggleButton.style.width = '10px';
         toggleButton.style.height = '10px';
         toggleButton.style.backgroundColor = 'red'; // Set the background color to red
@@ -611,7 +611,7 @@ initializeWrapperPosition();
         header.style.padding = '10px';
         header.style.position = 'relative';
         header.style.zIndex = '1';
-        header.innerHTML = 'Header Title';
+        header.innerHTML = t('plugin.livemapPlugin.headerTitle');
         return header;
     }
 
@@ -707,7 +707,7 @@ initializeWrapperPosition();
         input.addEventListener('change', async function() {
             if (this.checked) {
                 if (!stationid) {
-                    sendToast('warning', 'Live Map', 'TXPOS can only be activated when a station is recognized', false, false);    
+                    sendToast('warning', t('plugin.livemapPlugin.liveMap'), t('plugin.livemapPlugin.txposCanOnlyBeActived'), false, false);
                     this.checked = false;
                     return;
                 }
@@ -715,7 +715,7 @@ initializeWrapperPosition();
                 localStorage.setItem('txposLat', latTX);
                 localStorage.setItem('txposLon', lonTX);
                 debugLog(`LIVEMAP TXPOS activated: LAT = ${lat}, LON = ${lon}`);
-                sendToast('info', 'Live Map', `TXPOS activated: ${city}[${itu}]`, true, false);    
+                sendToast('info', t('plugin.livemapPlugin.liveMap'), `${t('plugin.livemapPlugin.txposActivated')}: ${city}[${itu}]`, true, false);
             } else {
                 localStorage.removeItem('txposLat');
                 localStorage.removeItem('txposLon');
@@ -1122,7 +1122,7 @@ function receiveGPS() {;
 				streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
 				streamLink.style.color = 'green';
 				streamLink.style.textDecoration = 'none';
-				streamLink.title = 'play livestream';
+				streamLink.title = t('plugin.livemapPlugin.playLivestream');
 				streamCell.appendChild(streamLink);
 				streamCell.style.paddingLeft = '10px';
 				streamCell.style.paddingRight = '10px';
@@ -1173,7 +1173,9 @@ function receiveGPS() {;
 
 				if	(PSTRotatorFunctions) {
 
-					stationCell.title = `Turn the rotor to ${city}[${itu}]`;
+					// @TODO need to translate from translation file
+                    // stationCell.title = `Turn the rotor to ${city}[${itu}]`;
+                    stationCell.title = `Rotoru ${city}[${itu}] yönüne çevirin`;
 					stationCell.style.cursor = 'pointer';
 
 					stationCell.addEventListener('mouseover', () => {
@@ -1189,14 +1191,16 @@ function receiveGPS() {;
 					stationCell.addEventListener('click', () => {
 	
 						if (!isTuneAuthenticated) {
-							sendToast('warning', 'Livemap', 'You must be authenticated to use the PSTRotator feature!', false, false);
+							sendToast('warning', 'Livemap', t('plugin.livemapPlugin.mustBeAuthenticated'), false, false);
 						return;
 						}
 	
 						const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, lat, lon);
 						const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;
     
-						sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+						// @TODO need to translate from translation file
+						// sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+						sendToast('info', 'Livemap', `Rotoru ${azimuth} dereceye çevirin`, false, false);
 						sendRotorPosition(azimuth);
 					});
 
@@ -1210,7 +1214,7 @@ function receiveGPS() {;
 				cityCell.style.width = '160px';
 				cityCell.style.paddingLeft = '5px';
 				cityCell.style.paddingRight = '5px';
-				cityCell.title = 'open location list';
+				cityCell.title = t('plugin.livemapPlugin.openLocationList');
 				cityCell.style.color = 'white';
 				cityCell.style.textAlign = 'left';
 				cityCell.style.overflow = 'hidden';
@@ -1278,7 +1282,7 @@ function receiveGPS() {;
 					// Append the icon to the button
 					FMLISTButton.appendChild(fmlistIcon);
 					FMLISTButton.style.textDecoration = 'none';
-					FMLISTButton.title = 'Entry in the FMLIST logbook';
+					FMLISTButton.title = t('plugin.livemapPlugin.entryFMLISTLogbook');
 
 					// Append the button to the table cell
 					fmlistCell.appendChild(FMLISTButton);
@@ -1319,7 +1323,7 @@ function receiveGPS() {;
 								isOpenFMLIST = true;
 							}
 						} else {
-							sendToast('error', 'Live Map', '${id} is not compatible with FMLIST Database!', false, false);    
+							sendToast('error', t('plugin.livemapPlugin.liveMap'), t('plugin.livemapPlugin.isNotCompatibleDatabase'), false, false);
 						}
 					});
 					
@@ -1386,7 +1390,7 @@ function receiveGPS() {;
 						streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
 						streamLink.style.color = 'green';
 						streamLink.style.textDecoration = 'none';
-						streamLink.title = 'play livestream';
+						streamLink.title = t('plugin.livemapPlugin.playLivestream');
 						streamCell.appendChild(streamLink);
 						streamCell.style.paddingLeft = '10px';
 						streamCell.style.paddingRight = '10px';
@@ -1455,7 +1459,9 @@ function receiveGPS() {;
 
 						if	(PSTRotatorFunctions) {
 
-							stationCell.title = `Turn the rotor to ${city}[${itu}]`;
+							// @TODO need to translate from translation file
+							// stationCell.title = `Turn the rotor to ${city}[${itu}]`;
+                            stationCell.title = `Rotoru ${city}[${itu}] yönüne çevirin`;
 							stationCell.style.cursor = 'pointer';
 
 							stationCell.addEventListener('mouseover', () => {
@@ -1471,14 +1477,16 @@ function receiveGPS() {;
 								stationCell.addEventListener('click', () => {
 	
 								if (!isTuneAuthenticated) {
-									sendToast('warning', 'Livemap', 'You must be authenticated to use the PSTRotator feature!', false, false);
+									sendToast('warning', 'Livemap', t('plugin.livemapPlugin.mustBeAuthenticated'), false, false);
 									return;
 								}
 	
 								const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);
 								const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;
     									
-								sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+								// @TODO need to translate from translation file
+								// sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+								sendToast('info', 'Livemap', `Rotoru ${azimuth} dereceye çevirin`, false, false);
 								sendRotorPosition(azimuth);
 							});
 
@@ -1493,7 +1501,7 @@ function receiveGPS() {;
 						cityAllCell.style.width = '160px';
 						cityAllCell.style.paddingRight = '5px';
 						cityAllCell.style.paddingLeft = '5px';
-						cityAllCell.title = 'open transmitter location on fmscan.org ';
+						cityAllCell.title = t('plugin.livemapPlugin.openTransmitterLocationOn');
 						cityAllCell.style.color = 'white';
 						cityAllCell.style.textAlign = 'left';
 						cityAllCell.style.overflow = 'hidden';
@@ -1581,7 +1589,7 @@ function receiveGPS() {;
 							// Append the icon to the button
 							FMLISTButton.appendChild(fmlistIcon);
 							FMLISTButton.style.textDecoration = 'none';
-							FMLISTButton.title = 'Entry in the FMLIST logbook';
+							FMLISTButton.title = t('plugin.livemapPlugin.entryFMLISTLogbook');
 
 							// Append the button to the table cell
 							fmlistCell.appendChild(FMLISTButton);
@@ -1623,7 +1631,7 @@ function receiveGPS() {;
 										isOpenFMLIST = true;
 									}
 								} else {
-								sendToast('error', 'Live Map', '${id} is not compatible with FMLIST Database!', false, false);    
+                                    sendToast('error', t('plugin.livemapPlugin.liveMap'), t('plugin.livemapPlugin.isNotCompatibleDatabase'), false, false);
 								}
 							});
 					
@@ -1690,7 +1698,7 @@ function receiveGPS() {;
 						streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
 						streamLink.style.color = 'green';
 						streamLink.style.textDecoration = 'none';
-						streamLink.title = 'play livestream';
+						streamLink.title = t('plugin.livemapPlugin.playLivestream');
 						streamCell.appendChild(streamLink);
 						streamCell.style.paddingLeft = '10px';
 						streamCell.style.paddingRight = '10px';
@@ -1759,7 +1767,9 @@ function receiveGPS() {;
 
 						if	(PSTRotatorFunctions) {
 
-							stationCell.title = `Turn the rotor to ${city}[${itu}]`;
+							// @TODO need to translate from translation file
+							// stationCell.title = `Turn the rotor to ${city}[${itu}]`;
+                            stationCell.title = `Rotoru ${city}[${itu}] yönüne çevirin`;
 							stationCell.style.cursor = 'pointer';
 
 							stationCell.addEventListener('mouseover', () => {
@@ -1775,14 +1785,16 @@ function receiveGPS() {;
 								stationCell.addEventListener('click', () => {
 	
 								if (!isTuneAuthenticated) {
-									sendToast('warning', 'Livemap', 'You must be authenticated to use the PSTRotator feature!', false, false);
+									sendToast('warning', 'Livemap', t('plugin.livemapPlugin.mustBeAuthenticated'), false, false);
 									return;
 								}
 	
 								const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);
 								const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;
     
-								sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+								// @TODO need to translate from translation file
+								// sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
+								sendToast('info', 'Livemap', `Rotoru ${azimuth} dereceye çevirin`, false, false);
 								sendRotorPosition(azimuth);
 							});
 
@@ -1797,7 +1809,7 @@ function receiveGPS() {;
 						cityAllCell.style.width = '160px';
 						cityAllCell.style.paddingRight = '5px';
 						cityAllCell.style.paddingLeft = '5px';
-						cityAllCell.title = 'open frequency list';
+						cityAllCell.title = t('plugin.livemapPlugin.openFrequencyList');
 						cityAllCell.style.color = 'white';
 						cityAllCell.style.textAlign = 'left';
 						cityAllCell.style.overflow = 'hidden';
@@ -1885,7 +1897,7 @@ function receiveGPS() {;
 							// Append the icon to the button
 							FMLISTButton.appendChild(fmlistIcon);
 							FMLISTButton.style.textDecoration = 'none';
-							FMLISTButton.title = 'Entry in the FMLIST logbook';
+							FMLISTButton.title = t('plugin.livemapPlugin.entryFMLISTLogbook');
 
 							// Append the button to the table cell
 							fmlistCell.appendChild(FMLISTButton);
@@ -1927,7 +1939,7 @@ function receiveGPS() {;
 										isOpenFMLIST = true;
 									}
 								} else {
-								sendToast('error', 'Live Map', '${id} is not compatible with FMLIST Database!', false, false);    
+                                    sendToast('error', t('plugin.livemapPlugin.liveMap'), t('plugin.livemapPlugin.isNotCompatibleDatabase'), false, false);
 								}
 							});
 					
@@ -2220,7 +2232,7 @@ function receiveGPS() {;
         element.classList.add('tooltip');
 
         // Add the "data-tooltip" attribute
-        element.setAttribute('data-tooltip', 'Toggle actual frequency - previous frequency  |  Hold longer for deactivating/activating');
+        element.setAttribute('data-tooltip', t('plugin.livemapPlugin.toggleActualPreviousFrequency'));
     }
 
     // Find the element with the ID "freq-container"
@@ -2426,7 +2438,7 @@ function receiveGPS() {;
         const resizer = document.createElement('div');
         resizer.id = 'resizer';
         resizer.classList.add('tooltip1'); // Klasse hinzufügen
-        resizer.setAttribute('data-tooltip', 'Resize Window'); // Daten-Attribut setzen
+        resizer.setAttribute('data-tooltip', t('plugin.livemapPlugin.resizeWindow')); // Daten-Attribut setzen
         resizer.style.width = '10px';
         resizer.style.height = '10px';
         resizer.style.background = 'blue';
@@ -2613,8 +2625,11 @@ createButton('LIVEMAP-on-off');
 	// Function to check if the user is logged in as an administrator
     function checkAdminMode() {
         const bodyText = document.body.textContent || document.body.innerText;
-        isAdminLoggedIn = bodyText.includes("You are logged in as an administrator.") || bodyText.includes("You are logged in as an adminstrator.");
-        isTuneLoggedIn = bodyText.includes("You are logged in and can control the receiver.");
+        const compareText1 = t('plugin.loggedInAsAdministrator');
+        const compareText2 = t('menu.loggedAsAdmin');
+        const compareText3 = t('plugin.loggedInCanControlReceiver');
+        isAdminLoggedIn = bodyText.includes(compareText1) || bodyText.includes(`${compareText2}.`);
+        isTuneLoggedIn = bodyText.includes(compareText3);
 
         if (isAdminLoggedIn) {
             console.log(`Admin mode found. PSTRotator Plugin Authentication successful.`);
