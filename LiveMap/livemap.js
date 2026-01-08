@@ -2497,7 +2497,7 @@ function receiveGPS() {;
       if (typeof addIconToPluginPanel === 'function') {
         observer.disconnect();
         // Create the button using addIconToPluginPanel
-        addIconToPluginPanel(buttonId, "Livemap", "solid", "map", `Plugin Version: ${plugin_version}`);
+        addIconToPluginPanel(buttonId, t('plugin.livemap'), "solid", "map", t('plugin.showOnMap'));
         functionFound = true;
 
         const buttonObserver = new MutationObserver(() => {
