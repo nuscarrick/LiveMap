@@ -32,7 +32,7 @@ const updateInfo = true; 			// Enable or disable version check
     let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
     let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
-    const plugin_version = '2.6d';
+    const plugin_version = '1.0';
 	  const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
@@ -56,7 +56,7 @@ const updateInfo = true; 			// Enable or disable version check
     let audioPlayer = null;
     let currentStreamId = null;
 
-    const plugin_path = 'https://raw.githubusercontent.com/highpoint2000/LiveMap/';
+    const plugin_path = 'https://raw.githubusercontent.com/nuscarrick/LiveMap/';
     const plugin_JSfile = 'main/LiveMap/livemap.js'
     const plugin_name = 'Livemap';
     const PluginUpdateKey = `${plugin_name}_lastUpdateNotification`; // Unique key for localStorage
