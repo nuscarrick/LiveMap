@@ -2,18 +2,17 @@
 
 ////////////////////////////////////////////////////////////
 ///                                                      ///
-///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V2.6d)          ///
+///  LIVEMAP SCRIPT FOR FM-DX-WEBSERVER (V1.0)           ///
 ///                                                      ///
-///  by Highpoint                last update: 26.03.25   ///
+///  by nuscarrick            last update: 01.06.26      ///
 ///                                                      ///
-///  https://github.com/Highpoint2000/LiveMap            ///
+///  https://github.com/nuscarrick/LiveMap               ///
 ///                                                      ///
 ////////////////////////////////////////////////////////////
 
 ///  This plugin only works from web server version 1.3.5 !!!
 
 let ConsoleDebug = false; 			// Activate/Deactivate console output
-const FMLIST_OM_ID = ''; 			// If you want to use the logbook function, enter your OM ID here, e.g., FMLIST_OM_ID = '1234'
 const PSTRotatorFunctions = false; 	// If you use the PSTRotator plugin, you can activate the control here (default = false)
 const updateInfo = true; 			// Enable or disable version check
 
@@ -27,34 +26,27 @@ const updateInfo = true; 			// Enable or disable version check
     }
 
     // Define iframe size and position variables
-    let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 600; 
-    let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650; 
-    let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10; 
+    let iframeWidth = parseInt(localStorage.getItem('iframeWidth')) || 600;
+    let iframeHeight = parseInt(localStorage.getItem('iframeHeight')) || 650;
+    let iframeLeft = parseInt(localStorage.getItem('iframeLeft')) || 10;
     let iframeTop = parseInt(localStorage.getItem('iframeTop')) || 10;
 
     const plugin_version = '1.0';
-	  const corsAnywhereUrl = 'https://cors-proxy.de:13128/';
     let lastPicode = null;
     let lastFreq = null;
     let lastStationId = null;
     let websocket;
     let iframeContainer = null;
     let LiveMapActive = false;
-    let picode, freq, itu, city, station, pol, distance, ps, stationid, radius, coordinates, azimuth, LAT, LON;
+    let picode, freq, itu, city, station, pol, distance, ps, stationid, radius, azimuth, LAT, LON;
     let stationListContainer;
     let foundPI;
     let foundID;
-    let latTX;
-    let lonTX;
     let Latitude;
     let Longitude;
     let ws;
     let isTuneAuthenticated;
     let ipAddress;
-	
-    // Audio Player Variables
-    let audioPlayer = null;
-    let currentStreamId = null;
 
     const plugin_path = 'https://raw.githubusercontent.com/nuscarrick/LiveMap/';
     const plugin_JSfile = 'main/LiveMap/livemap.js'
@@ -73,18 +65,30 @@ const updateInfo = true; 			// Enable or disable version check
     // Add custom CSS styles
     const style = document.createElement('style');
     style.innerHTML = `
+/* LM-013: Bluish Professional Theme - CSS Variables */
+:root {
+    --livemap-bg-primary: #2c3e50;      /* Dark bluish background */
+    --livemap-bg-secondary: #34495e;    /* Lighter bluish */
+    --livemap-bg-tertiary: #1a252f;     /* Darkest bluish */
+    --livemap-accent: #3498db;          /* Bright blue accent */
+    --livemap-text: #ecf0f1;            /* Light text */
+    --livemap-text-muted: #95a5a6;      /* Muted text */
+    --livemap-border: #1a252f;          /* Dark border */
+    --livemap-hover: #2980b9;           /* Hover state */
+}
+
 .tooltip1 {
     display: inline-block;
     cursor: pointer;
 }
 
 .tooltip1::after {
-  content: attr(data-tooltip); /* Das Attribut verwenden */
+  content: attr(data-tooltip);
   position: absolute;
-  bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
+  bottom: 100%;
   transform: translateX(-100%);
-  background-color: var(--color-3);
-  color: var(--color-text);
+  background-color: var(--livemap-bg-secondary);
+  color: var(--livemap-text);
   padding: 5px 25px;
   border-radius: 15px;
   white-space: nowrap;
@@ -105,12 +109,12 @@ const updateInfo = true; 			// Enable or disable version check
 }
 
 .tooltip2::after {
-  content: attr(data-tooltip); /* Das Attribut verwenden */
+  content: attr(data-tooltip);
   position: absolute;
-  bottom: 100%; /* Tooltip oberhalb des Elements anzeigen */
+  bottom: 100%;
   transform: translateX(10%);
-  background-color: var(--color-3);
-  color: var(--color-text);
+  background-color: var(--livemap-bg-secondary);
+  color: var(--livemap-text);
   padding: 5px 25px;
   border-radius: 15px;
   white-space: nowrap;
@@ -125,14 +129,12 @@ const updateInfo = true; 			// Enable or disable version check
   opacity: 1;
 }
 
-
-	
 body {
-    margin: 0; /* Remove default margin */
+    margin: 0;
 }
 
 #wrapper {
-    position: relative; /* Position for the wrapper */
+    position: relative;
 }
 
     .fade-out {
@@ -173,168 +175,36 @@ body {
         height: ${iframeHeight}px;
         left: ${iframeLeft}px;
         top: ${iframeTop}px;
-        background-color: #f0f0f0;
+        background-color: var(--livemap-bg-primary);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
     }
 
     #movableDiv iframe {
-        border-radius: 5px;
+        display: block;
         flex-grow: 1;
+        min-height: 0;
         width: 100%;
+        height: 100%;
         border: none;
+        border-radius: 0;
         position: relative;
     }
 
-    .switchTXPOS {
-        position: relative;
-        display: inline-block;
-        width: 34px;
-        height: 14px;
-    }
+ .icon-hover-effect {
+  color: var(--livemap-text-muted);
+  cursor: pointer;
+  transition: color 0.3s ease;
+ }
 
-    .switchTXPOS input {
-        opacity: 0;
-        width: 0;
-        height: 0;
-    }
-
-    .slider {
-        position: absolute;
-        cursor: pointer;
-        top: 0;
-        left: 0;
-        right: 0;
-        bottom: 0;
-        background-color: #ccc;
-        transition: .4s;
-        border-radius: 34px;
-    }
-
-    .slider:before {
-        position: absolute;
-        content: "";
-        height: 14px;
-        width: 14px;
-        left: 0px;
-        bottom: 0px;
-        background-color: white;
-        transition: .4s;
-        border-radius: 50%;
-    }
-
-    input:checked + .slider {
-        background-color: #2196F3;
-    }
-
-    input:checked + .slider:before {
-        transform: translateX(20px);
-    }
-
-    .switchTXPOS.disabled .slider {
-        background-color: red;
-    }
-
-    .switchTXPOS.enabled .slider {
-        background-color: green;
-    }
-	
-	.icon-hover-effect {
-		color: #D3D3D3; /* Default light gray color */
-		cursor: pointer;
-	}
-
-	.icon-hover-effect:hover {
-		color: var(--color-4); /* Change color to green on hover */
-		text-decoration: none; /* No underline on hover */
-	}
-	
+ .icon-hover-effect:hover {
+  color: var(--livemap-accent);
+  text-decoration: none;
+ }
+ 
     `;
     document.head.appendChild(style);
 
-    // --- Audio Stream Functions ---
-
-    function playStream(url) {
-        if (!audioPlayer) {
-            audioPlayer = document.createElement('audio');
-            audioPlayer.id = 'fmdx-livemap-player';
-            audioPlayer.autoplay = true;
-            audioPlayer.controls = false;
-            audioPlayer.style.display = 'none';
-            document.body.appendChild(audioPlayer);
-        }
-        audioPlayer.src = url;
-        audioPlayer.play().catch(e => {
-            console.error('Audio play failed:', e);
-            sendToast('error', t('plugin.livemapPlugin.playStream'), t('plugin.livemapPlugin.audioPlaybackFailed'), false, false);
-        });
-    }
-
-    function stopStream() {
-        if (audioPlayer) {
-            audioPlayer.pause();
-            audioPlayer.src = '';
-            audioPlayer.remove();
-            audioPlayer = null;
-        }
-
-        // Reset all playing icons to 'play' state
-        const activeIcons = document.querySelectorAll('.fa-square.icon-hover-effect');
-        activeIcons.forEach(icon => {
-            icon.classList.remove('fa-square');
-            icon.classList.add('fa-play');
-            icon.style.color = ''; // Revert color to default
-        });
-
-        currentStreamId = null;
-    }
-
-    async function handleStreamClick(id, stationName, iconElement) {
-        // If clicking the same station, stop it (toggle)
-        if (currentStreamId === id) {
-            stopStream();
-            return;
-        }
-
-        stopStream(); // Stops previous and resets UI
-        
-        sendToast('info', t('plugin.livemapPlugin.playStream'), `${t('plugin.livemapPlugin.loadingStreamFor')} ${stationName}...`, false, false);
-
-        try {
-            const token = '924924';
-            const API_URL = `https://api.fmlist.org/152/fmdxGetStreamById.php?id=${id}&token=${token}`;
-            const domain = window.location.host;
-            const url = `${corsAnywhereUrl}${API_URL}&cb=${Date.now()}&domain=${domain}`;
-
-            const resp = await fetch(url);
-            if (!resp.ok) throw new Error(`API-Error ${resp.status}`);
-
-            const streams = await resp.json();
-            if (!Array.isArray(streams) || streams.length === 0) {
-                sendToast('warning important', t('plugin.livemapPlugin.playStream'), t('plugin.livemapPlugin.noStreamURLFound'), false, false);
-                return;
-            }
-
-            // Select stream with highest bitrate
-            const best = streams.reduce((a, b) => parseInt(b.bitrate) > parseInt(a.bitrate) ? b : a);
-            
-            playStream(best.linkname);
-            currentStreamId = id;
-
-            // Update the clicked icon to 'stop' (square) state
-            if (iconElement) {
-                iconElement.classList.remove('fa-play');
-                iconElement.classList.add('fa-square');
-                iconElement.style.color = 'white'; // Set to white as requested
-            }
-
-            sendToast('info important', t('plugin.livemapPlugin.playStream'),
-                `<div style="max-width:150px;white-space:normal;word-break:break-all;">Playing: ${best.linkname}</div>`,
-                false, false);
-
-        } catch (err) {
-            console.error('Error loading stream:', err);
-            sendToast('error', t('plugin.livemapPlugin.playStream'), t('plugin.livemapPlugin.errorLoadingStreamData'), false, false);
-        }
-    }
+    // --- Audio Stream Functions removed (feature no longer used) ---
 
 	// Function to check if the notification was shown today
   function shouldShowNotification() {
@@ -537,15 +407,17 @@ initializeWrapperPosition();
     function createToggleButton() {
         const toggleButton = document.createElement('div');
         toggleButton.classList.add('tooltip2'); // Klasse hinzufügen
-        toggleButton.setAttribute('data-tooltip', t('plugin.livemapPlugin.toggleStationList')); // Daten-Attribut setzen
+        toggleButton.setAttribute('data-tooltip', t('plugin.livemapPlugin.toggleStationList'));
         toggleButton.style.width = '10px';
         toggleButton.style.height = '10px';
-        toggleButton.style.backgroundColor = 'red'; // Set the background color to red
+        toggleButton.style.backgroundColor = 'var(--livemap-accent)';
         toggleButton.style.position = 'absolute';
-        toggleButton.style.bottom = '0px'; // Position from the bottom
-        toggleButton.style.left = '0px'; // Position from the left
+        toggleButton.style.bottom = '0px';
+        toggleButton.style.left = '0px';
         toggleButton.style.cursor = 'pointer';
-        toggleButton.style.zIndex = '1000'; // Ensures the button is on top
+        toggleButton.style.zIndex = '1000';
+        toggleButton.style.borderRadius = '0 0 0 15px';
+        toggleButton.style.transition = 'background-color 0.3s ease';
 
         // Add the toggle functionality
         toggleButton.onclick = () => {
@@ -584,23 +456,6 @@ initializeWrapperPosition();
         return toggleButton;
     }
 
-    // Update toggle switchTXPOS based on stationid
-    function updateToggleswitchTXPOS(stationid) {
-        const txposswitchTXPOS = document.getElementById('txposswitchTXPOS');
-        const toggleswitchTXPOS = document.querySelector('.switchTXPOS');
-        txposswitchTXPOS.disabled = false;
-
-        if (txposswitchTXPOS) {
-            if (stationid) {
-                toggleswitchTXPOS.classList.add('enabled');
-                toggleswitchTXPOS.classList.remove('disabled');
-            } else {
-                toggleswitchTXPOS.classList.add('disabled');
-                toggleswitchTXPOS.classList.remove('enabled');
-            }
-        }
-    }
-	
     // WebSocket setup function
     async function setupWebSocket() {
         if (!websocket || websocket.readyState === WebSocket.CLOSED) {
@@ -628,24 +483,33 @@ initializeWrapperPosition();
         }
     }
 
-    // Function to create the close button ("X")
+    // Function to create the close button ("X") - LM-014: Apply bluish theme
     function createCloseButton() {
     const closeButton = document.createElement('div');
-    closeButton.innerHTML = 'x';
+    closeButton.innerHTML = '×';
     closeButton.style.position = 'absolute';
     closeButton.style.top = '0px';
     closeButton.style.right = '8px';
     closeButton.style.cursor = 'pointer';
-    closeButton.style.color = 'white';
-    closeButton.classList.add('bg-color-2');
-    closeButton.style.padding = '4px';
+    closeButton.style.color = 'var(--livemap-text)';
+    closeButton.style.backgroundColor = 'var(--livemap-bg-secondary)';
+    closeButton.style.padding = '4px 8px';
     closeButton.style.paddingLeft = '15px';
     closeButton.style.zIndex = '10';
-    closeButton.style.fontSize = '20px';
+    closeButton.style.fontSize = '24px';
+    closeButton.style.fontWeight = 'bold';
+    closeButton.style.borderRadius = '0 15px 0 0';
+    closeButton.style.transition = 'background-color 0.3s ease';
+    
+    closeButton.addEventListener('mouseenter', () => {
+        closeButton.style.backgroundColor = 'var(--livemap-hover)';
+    });
+    
+    closeButton.addEventListener('mouseleave', () => {
+        closeButton.style.backgroundColor = 'var(--livemap-bg-secondary)';
+    });
 
     closeButton.onclick = () => {
-        
-        stopStream(); // Stop stream when closing
 
         // Speichern der aktuellen Position und Größe
         iframeLeft = parseInt(iframeContainer.style.left);
@@ -692,132 +556,48 @@ initializeWrapperPosition();
     // Create iframe element
     function createIframe() {
         const iframe = document.createElement('iframe');
+        iframe.style.display = 'block';
         iframe.style.flexGrow = '1';
+        iframe.style.minHeight = '0';
+        iframe.style.border = 'none';
+        iframe.style.borderRadius = '0';
+        iframe.style.width = '100%';
+        iframe.style.height = '100%';
         return iframe;
     }
 
-    // Create the iframe header
+    // Create the iframe header - LM-014: Apply bluish professional theme
     function createIframeHeader() {
         const header = document.createElement('div');
-        header.classList.add('bg-color-2');
-        header.style.color = 'white';
-        header.style.padding = '10px';
+        header.style.backgroundColor = 'var(--livemap-bg-secondary)';
+        header.style.color = 'var(--livemap-text)';
+        header.style.padding = '12px 15px';
         header.style.position = 'relative';
         header.style.zIndex = '1';
+        header.style.fontWeight = '600';
+        header.style.fontSize = '14px';
+        header.style.borderBottom = '2px solid var(--livemap-border)';
         header.innerHTML = t('plugin.livemapPlugin.headerTitle');
         return header;
     }
 
-    // Create the iframe footer with radius options and a toggle switchTXPOS for TXPOS
-    function createIframeFooter(coordinates) {
+    // Create the iframe footer - LM-014: Apply bluish professional theme
+    function createIframeFooter() {
 
         const footer = document.createElement('div');
-        footer.classList.add('bg-color-2');
-        footer.style.color = 'white';
-        footer.style.padding = '10px';
+        footer.style.backgroundColor = 'var(--livemap-bg-secondary)';
+        footer.style.color = 'var(--livemap-text)';
+        footer.style.padding = '10px 15px';
         footer.style.position = 'relative';
-        footer.style.zIndex = '1'; 
-        footer.style.display = 'flex'; 
-        footer.style.flexWrap = 'wrap'; 
-        footer.style.justifyContent = 'space-between';
+        footer.style.zIndex = '1';
+        footer.style.display = 'flex';
+        footer.style.flexWrap = 'wrap';
+        footer.style.justifyContent = 'flex-end';
+        footer.style.alignItems = 'center';
+        footer.style.borderTop = '2px solid var(--livemap-border)';
 
-        radius = localStorage.getItem('selectedRadius') || '';
-
-        function updateradius(value) {
-            radius = value;
-            localStorage.setItem('selectedRadius', radius); 
-            lastFreq = null;
-
-            openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius);
-        }
-
-        const radioButtonsHTML = `
-            <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="100"> 100 km
-            </label>
-            <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="250"> 250 km
-            </label>
-            <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="500"> 500 km
-            </label>
-            <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="750"> 750 km
-            </label>
-            <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="1000"> 1000 km
-            </label>
-            <label style="margin-right: 10px;">
-                <input type="radio" name="radius" value="none"> none
-            </label>
-        `;
-
-        // TODO: Current our API `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freq}&pi=${picode}&pos=${LAT},${LON}  is not support return json data, so we will skip the API request and return.
-        // footer.innerHTML = radioButtonsHTML;
-
-        const radioButtons = footer.querySelectorAll('input[type="radio"]');
-        radioButtons.forEach(radio => {
-            radio.addEventListener('change', function() {
-                updateradius(this.value); 
-            });
-
-            if (radio.value === radius) {
-                radio.checked = true; 
-            }
-        });
-
-        const toggleswitchTXPOSContainer = document.createElement('div');
-        toggleswitchTXPOSContainer.style.display = 'flex';
-        toggleswitchTXPOSContainer.style.alignItems = 'center';
-        toggleswitchTXPOSContainer.style.marginRight = '10px';
-
-        const toggleswitchTXPOSLabel = document.createElement('label');
-        toggleswitchTXPOSLabel.innerHTML = 'TXPOS';
-        toggleswitchTXPOSLabel.style.marginLeft = '10px'; 
-        toggleswitchTXPOSLabel.style.whiteSpace = 'nowrap'; 
-
-        const toggleswitchTXPOS = document.createElement('label');
-        toggleswitchTXPOS.classList.add('switchTXPOS'); 
-
-        const input = document.createElement('input');
-        input.type = 'checkbox';
-        input.id = 'txposswitchTXPOS';
-        input.disabled = false;
-
-        const slider = document.createElement('span');
-        slider.classList.add('slider');
-
-        toggleswitchTXPOS.appendChild(input);
-        toggleswitchTXPOS.appendChild(slider);
-        // TODO: Current our API `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freq}&pi=${picode}&pos=${LAT},${LON}  is not support return json data, so we will skip the API request and return.
-        // toggleswitchTXPOSContainer.appendChild(toggleswitchTXPOS);
-        // toggleswitchTXPOSContainer.appendChild(toggleswitchTXPOSLabel);
-        footer.appendChild(toggleswitchTXPOSContainer);
-        toggleswitchTXPOS.classList.add('disabled'); 
-		
-		const { lat, lon } = coordinates || {};
-		latTX = lat;
-		lonTX = lon;
-
-        input.addEventListener('change', async function() {
-            if (this.checked) {
-                if (!stationid) {
-                    sendToast('warning', t('plugin.livemapPlugin.liveMap'), t('plugin.livemapPlugin.txposCanOnlyBeActived'), false, false);
-                    this.checked = false;
-                    return;
-                }
-				console.log(latTX, lonTX);
-                localStorage.setItem('txposLat', latTX);
-                localStorage.setItem('txposLon', lonTX);
-                debugLog(`LIVEMAP TXPOS activated: LAT = ${lat}, LON = ${lon}`);
-                sendToast('info', t('plugin.livemapPlugin.liveMap'), `${t('plugin.livemapPlugin.txposActivated')}: ${city}[${itu}]`, true, false);
-            } else {
-                localStorage.removeItem('txposLat');
-                localStorage.removeItem('txposLon');
-                debugLog(`LIVEMAP TXPOS deactivated, using default values.`);
-                openOrUpdateIframe('?', '0.0', '', '', '', '', '', '', '',radius);
-            }
-        });
+        // LM-016: Set default radius to 250km (removed radius selection UI)
+        radius = '250';
 
         return footer;
     }
@@ -892,16 +672,14 @@ function isCacheExpired(cachedAt) {
     return (currentTime - cachedAt) > sevenDaysInMillis;
 }
 
-// Main function with cache mechanism
+// LM-004: Main function with cache mechanism using fxdetails2.php API
 async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, pol, foundPI) {
 
     try {
-        let response;
-        const txposswitchTXPOS = document.getElementById('txposswitchTXPOS');
         const db = await openCacheDB();
         
         // Create a cache key based on the parameters
-        const cacheKey = `freq:${freq}-lat:${txposLat}-lon:${txposLon}-radius:${radius}-picode:${picode}-stationid:${stationid}`;
+        const cacheKey = `livemap:v1:${freq}:${picode}:${txposLat}:${txposLon}`;
         
         // Check if data is already in cache
         const cachedData = await getCachedData(db, cacheKey);
@@ -917,34 +695,31 @@ async function fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon
             }
         }
 
-        // TODO: Current our API `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freq}&pi=${picode}&pos=${LAT},${LON}  is not support return json data, so we will skip the API request and return.
-        debugLog('Skipping API request and returning...');
-        return;
-
-        // If no cached data or data is expired, make the API request
-        if (txposswitchTXPOS && txposswitchTXPOS.checked) {
-            if (stationid) {
-                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
-                txposLat = LAT;
-                txposLon = LON;
-            } else {
-                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`);
-            }
-        } else {
-
-            if (stationid || picode !== '?' && foundPI) {
-                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}`);
-            } else {
-                response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?lat=${LAT}&lon=${LON}&freq=${freq}&r=${radius}`);       
-            }
+        // Only fetch if we have a valid PI code (not '?')
+        if (!picode || picode === '?') {
+            debugLog('No valid PI code, skipping station data fetch');
+            return;
         }
+
+        // LM-004: Use new fxdetails2.php API
+        const freqKHz = Math.round(parseFloat(freq) * 1000);
+        const apiUrl = `https://api.fmlist.org/fmscan.com/fxdetails2.php?fx=${freqKHz}&pi=${picode}&pos=${txposLat},${txposLon}`;
+        
+        debugLog('Fetching station data from:', apiUrl);
+        const response = await fetch(apiUrl);
 
         if (!response.ok) {
             throw new Error(`HTTP error! Status: ${response.status}`);
         }
 
         const data = await response.json();
-        debugLog('Fetched data from API:', data);
+        debugLog('Fetched data from fxdetails2 API:', data);
+
+        // Check if we got valid data
+        if (!data || !data.frequencies || data.frequencies.length === 0) {
+            debugLog('No station data returned from API');
+            return;
+        }
 
         // Cache the API response with a timestamp
         await cacheData(db, cacheKey, data);
@@ -1092,166 +867,120 @@ function receiveGPS() {;
 }
 
 
-	// Variable to track the window state
-	let FMLISTWindow = null;
-	let isOpenFMLIST = false;
-
-    // Function to open the FMLIST link in a popup window
-    function openFMLISTPage(id, distance, azimuth, itu) {
-        // URL for the website
-        const url = `https://www.fmlist.org/fi_inslog.php?lfd=${id}&qrb=${distance}&qtf=${azimuth}&country=${itu}&omid=${FMLIST_OM_ID}`;
-
-        // Open the link in a popup window
-        FMLISTWindow = window.open(url, "_blank", "width=800,height=820"); // Adjust the window size as needed
-    }	
 
 	async function displayStationData(data, txposLat, txposLon, picode, pol, foundPI) {
-        if (!data || !data.locations || typeof data.locations !== 'object') {
-            // console.warn('No valid data received for station display.');
-            return;
-        }
+	       // LM-004: Handle new fxdetails2.php API response format
+	       if (!data) {
+	           debugLog('No data received for station display');
+	           return;
+	       }
 
-        const iframeContainer = document.getElementById('movableDiv');
+	       const iframeContainer = document.getElementById('movableDiv');
 
-        if (!stationListContainer) {
-            stationListContainer = document.createElement('div');
-            stationListContainer.style.position = 'absolute';
-            stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
-            stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
-            stationListContainer.classList.add('bg-color-2');
-            stationListContainer.style.padding = '15px';
-            stationListContainer.style.borderRadius = '0px 0px 15px 15px';
-            stationListContainer.style.zIndex = '10';
-            stationListContainer.style.maxHeight = '182px';
-            stationListContainer.style.overflowY = 'scroll';
-            stationListContainer.style.visibility = 'visible'; 
-            document.body.appendChild(stationListContainer);
-        } else {
-            stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
-            stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
-        }
+	       if (!stationListContainer) {
+	           stationListContainer = document.createElement('div');
+	           stationListContainer.style.position = 'absolute';
+	           stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
+	           stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
+	           stationListContainer.style.backgroundColor = 'var(--livemap-bg-secondary)';
+	           stationListContainer.style.padding = '15px';
+	           stationListContainer.style.borderRadius = '0px 0px 15px 15px';
+	           stationListContainer.style.zIndex = '10';
+	           stationListContainer.style.maxHeight = '182px';
+	           stationListContainer.style.overflowY = 'scroll';
+	           stationListContainer.style.visibility = 'visible';
+	           stationListContainer.style.boxShadow = '0 4px 6px rgba(0, 0, 0, 0.3)';
+	           document.body.appendChild(stationListContainer);
+	       } else {
+	           stationListContainer.style.left = `${iframeContainer.offsetLeft}px`;
+	           stationListContainer.style.top = `${iframeContainer.offsetTop + iframeContainer.offsetHeight}px`;
+	       }
 
-        stationListContainer.style.msOverflowStyle = 'none';  
-        stationListContainer.style.scrollbarWidth = 'none';  
-        stationListContainer.style.WebkitOverflowScrolling = 'touch';  
-        stationListContainer.style.overflowX = 'hidden';  
-        stationListContainer.innerHTML = ''; 
+	       stationListContainer.style.msOverflowStyle = 'none';
+	       stationListContainer.style.scrollbarWidth = 'none';
+	       stationListContainer.style.WebkitOverflowScrolling = 'touch';
+	       stationListContainer.style.overflowX = 'hidden';
+	       stationListContainer.innerHTML = '';
 
-        const stationsWithCoordinates = [];
-        const allStations = [];
-
-        for (const key in data.locations) {
-            const location = data.locations[key];
-            location.stations.forEach(station => {
-                const lat = parseFloat(location.lat);
-                const lon = parseFloat(location.lon);
-                const itu = location.itu || 'N/A';
-                if (!isNaN(lat) && !isNaN(lon)) {
-
-                    const stationData = {
-                        station,
-                        city: location.name,
-						            pol: station.pol,
-                        lat, 
-                        lon,
-                        pi: station.pi,
-                        erp: station.erp,
-                        id: station.id,
-                        itu,
-                        freq: parseFloat(station.freq)
-                    };
-
-                    stationsWithCoordinates.push(stationData);
-                    allStations.push(stationData);
-										
-                }
-            });
-        }
-
-        stationsWithCoordinates.sort((a, b) => {
-            const distA = Math.abs(a.lat - txposLat) + Math.abs(a.lon - txposLon);
-            const distB = Math.abs(b.lat - txposLat) + Math.abs(b.lon - txposLon);
-            return distA - distB;
-        });
-		
-
-        const filteredStations = stationsWithCoordinates.filter(station => {		
-        
-            if (stationid) {
-                return station.id === stationid;
-            } else if (picode !== '?' && station.pi && foundPI) {
-                return picode === station.pi && parseFloat(station.freq) === parseFloat(freq);
-            } else {
-                return parseFloat(station.freq) === parseFloat(freq);
-            }
-        });
+	       // LM-004: Parse new API format (fxdetails2.php)
+	       const filteredStations = [];
+	       
+	       if (data.frequencies && Array.isArray(data.frequencies)) {
+	           // New API format from fxdetails2.php
+	           data.frequencies.forEach(item => {
+	               filteredStations.push({
+	                   id: item.id,
+	                   stationid: item.stationid,
+	                   station: item.station,
+	                   city: item.location,
+	                   freq: parseFloat(item.frequency) / 1000, // Convert kHz to MHz
+	                   pi: picode, // Use the picode from parameters
+	                   dist: parseFloat(item.dist),
+	                   azim: parseFloat(item.azim),
+	                   erp: 0, // Not provided by this API
+	                   pol: pol || 'H', // Use pol from parameters or default to H
+	                   itu: '', // Not provided by this API
+	                   lat: null, // Not provided by this API
+	                   lon: null // Not provided by this API
+	               });
+	           });
+	       }
+	       
+	       if (filteredStations.length === 0) {
+	           debugLog('No stations to display');
+	           return;
+	       }
 		
         const table = document.createElement('table');
         table.style.width = '100%';
         table.style.borderCollapse = 'collapse';
         table.style.fontSize = '13px';
-        table.classList.add('bg-color-2');
+        table.style.backgroundColor = 'var(--livemap-bg-secondary)';
         table.style.borderRadius = '15px';
-        // table.style.margin = '0 auto';
         table.style.marginBottom = '0px';
         table.style.marginTop = '0px';
         table.style.textAlign = 'left';
 
-        filteredStations.forEach(({ station, city, lat, lon, pi, erp, id, itu }) => {
-					
-			if (station.station) {
+        filteredStations.forEach((stationData) => {
+            // LM-004: Handle new data structure
+            const { station, city, freq: stationFreq, pi: stationPi, erp, id, stationid: sid, dist, azim, pol: stationPol, itu } = stationData;
+     
+   if (station) {
             
-				const row = document.createElement('tr');
-				row.style.margin = '0';
-				row.style.padding = '0';
+    const row = document.createElement('tr');
+    row.style.margin = '0';
+    row.style.padding = '0';
+    row.style.transition = 'background-color 0.2s ease';
 
-				if (station.id === stationid) {
-					row.classList.add('bg-color-1');
-				} else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
-					row.classList.add('bg-color-1');
-				}
+    // Highlight the received station
+    if (id === stationid || sid === stationid) {
+     row.style.backgroundColor = 'var(--livemap-bg-tertiary)';
+    } else if (picode === stationPi && parseFloat(freq) === parseFloat(stationFreq)) {
+     row.style.backgroundColor = 'var(--livemap-bg-tertiary)';
+    }
+    
+    // Add hover effect
+    row.addEventListener('mouseenter', () => {
+     if (id !== stationid && sid !== stationid && !(picode === stationPi && parseFloat(freq) === parseFloat(stationFreq))) {
+      row.style.backgroundColor = 'var(--livemap-bg-primary)';
+     }
+    });
+    
+    row.addEventListener('mouseleave', () => {
+     if (id !== stationid && sid !== stationid && !(picode === stationPi && parseFloat(freq) === parseFloat(stationFreq))) {
+      row.style.backgroundColor = 'transparent';
+     }
+    });
 
-				const streamCell = document.createElement('td');
-				const streamLink = document.createElement('a');
-				const playIcon = document.createElement('i');
-				playIcon.className = 'fas icon-hover-effect';
-				playIcon.style.cursor = 'pointer';
-
-                // Check if this station is currently playing
-                if (currentStreamId === id) {
-                    playIcon.classList.add('fa-square');
-                    playIcon.style.color = 'white';
-                } else {
-                    playIcon.classList.add('fa-play');
-                }
-				
-				streamLink.appendChild(playIcon);
-                // Modified stream link behavior
-				// streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-                streamLink.href = '#';
-                streamLink.onclick = (e) => {
-                    e.preventDefault();
-                    handleStreamClick(id, station.station, playIcon);
-                };
-
-				streamLink.style.color = 'green';
-				streamLink.style.textDecoration = 'none';
-				streamLink.title = t('plugin.livemapPlugin.playLivestream');
-				streamCell.appendChild(streamLink);
-				streamCell.style.paddingLeft = '10px';
-				streamCell.style.paddingRight = '10px';
-				streamCell.style.width = '5px';
-				streamCell.style.maxWidth = '5px';
-				streamCell.style.textAlign = 'left';
-				row.appendChild(streamCell);
+				// Play icon removed per user request
 
 				const freqCell = document.createElement('td');
-				freqCell.innerText = `${station.freq.toFixed(2)} MHz`;
+				freqCell.innerText = `${stationFreq.toFixed(2)} MHz`;
 				freqCell.style.maxWidth = '100px';
 				freqCell.style.width = '100px';
 				freqCell.style.paddingLeft = '5px';
 				freqCell.style.paddingRight = '25px';
-				freqCell.style.color = 'white';
+				freqCell.style.color = 'var(--livemap-text)';
 				freqCell.style.textAlign = 'right';
 				freqCell.style.overflow = 'hidden';
 				freqCell.style.whiteSpace = 'nowrap';
@@ -1259,14 +988,14 @@ function receiveGPS() {;
 				row.appendChild(freqCell);
 
 				const piCell = document.createElement('td');
-				if (station.pi) {
-					piCell.innerText = pi;
+				if (stationPi) {
+					piCell.innerText = stationPi;
 				}
 				piCell.style.maxWidth = '70px';
 				piCell.style.width = '70px';
 				piCell.style.paddingLeft = '5px';
 				piCell.style.paddingRight = '25px';
-				piCell.style.color = 'white';
+				piCell.style.color = 'var(--livemap-text)';
 				piCell.style.textAlign = 'right';
 				piCell.style.overflow = 'hidden';
 				piCell.style.whiteSpace = 'nowrap';
@@ -1274,32 +1003,30 @@ function receiveGPS() {;
 				row.appendChild(piCell);
 
 				const stationCell = document.createElement('td');
-				stationCell.innerText = station.station;
+				stationCell.innerText = station;
 				stationCell.style.maxWidth = '160px';
 				stationCell.style.width = '160px';
 				stationCell.style.paddingLeft = '5px';
 				stationCell.style.paddingRight = '5px';
-				stationCell.style.color = 'white';
+				stationCell.style.color = 'var(--livemap-text)';
 				stationCell.style.textAlign = 'left';
 				stationCell.style.overflow = 'hidden';
 				stationCell.style.whiteSpace = 'nowrap';
 				stationCell.style.textOverflow = 'ellipsis';
 
-				if	(PSTRotatorFunctions) {
-
-					// @TODO need to translate from translation file
-          // stationCell.title = `Turn the rotor to ${city}[${itu}]`;
-          stationCell.title = `${t('plugin.livemapPlugin.turnTheRotorTo')} ${city}[${itu}]`;
+				if	(PSTRotatorFunctions && azim) {
+					// LM-004: Use azimuth from API if available
+				      stationCell.title = `${t('plugin.livemapPlugin.turnTheRotorTo')} ${city}${itu ? ' [' + itu + ']' : ''} (${azim}°)`;
 					stationCell.style.cursor = 'pointer';
 
 					stationCell.addEventListener('mouseover', () => {
 						stationCell.style.textDecoration = 'underline';
-						stationCell.style.color = 'var(--color-5)';
+						stationCell.style.color = 'var(--livemap-accent)';
 					});
 				
 					stationCell.addEventListener('mouseout', () => {
 						stationCell.style.textDecoration = 'none';
-						stationCell.style.color = 'white';
+						stationCell.style.color = 'var(--livemap-text)';
 					});
 
 					stationCell.addEventListener('click', () => {
@@ -1309,13 +1036,9 @@ function receiveGPS() {;
 						return;
 						}
 	
-						const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, lat, lon);
-						const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;
-    
-						// @TODO need to translate from translation file
-						// sendToast('info', 'Livemap', `Turn the rotor to ${azimuth} degrees`, false, false);
-						sendToast('info', t('plugin.livemap'), `${t('plugin.livemapPlugin.turnTheRotorTo')} ${azimuth} ${t('plugin.livemapPlugin.degrees')}`, false, false);
-						sendRotorPosition(azimuth);
+						// LM-004: Use azimuth from API
+						sendToast('info', t('plugin.livemap'), `${t('plugin.livemapPlugin.turnTheRotorTo')} ${azim} ${t('plugin.livemapPlugin.degrees')}`, false, false);
+						sendRotorPosition(azim);
 					});
 
 				}
@@ -1323,126 +1046,62 @@ function receiveGPS() {;
 				row.appendChild(stationCell);
 
 				const cityCell = document.createElement('td');
-				cityCell.innerText = `${city} [${itu}]`;
+				cityCell.innerText = itu ? `${city} [${itu}]` : city;
 				cityCell.style.maxWidth = '160px';
 				cityCell.style.width = '160px';
 				cityCell.style.paddingLeft = '5px';
 				cityCell.style.paddingRight = '5px';
-				cityCell.title = t('plugin.livemapPlugin.openLocationList');
-				cityCell.style.color = 'white';
+				cityCell.style.color = 'var(--livemap-text)';
 				cityCell.style.textAlign = 'left';
 				cityCell.style.overflow = 'hidden';
 				cityCell.style.whiteSpace = 'nowrap';
 				cityCell.style.textOverflow = 'ellipsis';
-				cityCell.style.cursor = 'pointer';
 				row.appendChild(cityCell);
-
-				cityCell.addEventListener('mouseover', () => {
-					cityCell.style.textDecoration = 'underline';
-					cityCell.style.color = 'var(--color-5)';
-				});
-
-				cityCell.addEventListener('mouseout', () => {
-					cityCell.style.textDecoration = 'none';
-					cityCell.style.color = 'white';
-				});
 					
-				const polCell = document.createElement('td');
-				polCell.innerText = `${station.pol.substring(0, 1)}`;
-				polCell.style.maxWidth = '1px';
-				polCell.style.width = '1px';
-				polCell.style.paddingLeft = '5px';
-				polCell.style.paddingRight = '15px';
-				polCell.style.color = 'white';
-				polCell.style.textAlign = 'right';       
-				row.appendChild(polCell);
-
-				const erpCell = document.createElement('td');
-				erpCell.innerText = `${erp.toFixed(2)} kW`;
-				erpCell.style.maxWidth = '100px';
-				erpCell.style.width = '100px';
-				erpCell.style.paddingLeft = '5px';
-				erpCell.style.paddingRight = '5px';
-				erpCell.style.color = 'white';
-				erpCell.style.textAlign = 'right';
-				erpCell.style.overflow = 'hidden';
-				erpCell.style.whiteSpace = 'nowrap';
-				erpCell.style.textOverflow = 'ellipsis';
-
-				if (erp < 0.5) {
-					// ERP less than 0.5 kW, set background color to purple
-					erpCell.style.backgroundColor = '#7800FF';
-				} else if (erp >= 0.5 && erp < 5.0) {
-					// ERP between 0.5 kW and 5.0 kW, set background color to blue
-					erpCell.style.backgroundColor = '#238BFF';
-				} else if (erp >= 5.0) {
-					// ERP greater than or equal to 5.0 kW, set background color to dark blue
-					erpCell.style.backgroundColor = '#0000FF';
+				// LM-004: Add distance cell (from new API)
+				if (dist !== undefined && dist !== null) {
+					const distCell = document.createElement('td');
+					distCell.innerText = `${Math.round(dist)} km`;
+					distCell.style.maxWidth = '80px';
+					distCell.style.width = '80px';
+					distCell.style.paddingLeft = '5px';
+					distCell.style.paddingRight = '15px';
+					distCell.style.color = 'var(--livemap-text)';
+					distCell.style.textAlign = 'right';
+					row.appendChild(distCell);
 				}
 
-				// Append the ERP cell to the row
-				row.appendChild(erpCell);
-							
-				if (FMLIST_OM_ID !== '') {
-				
-					const fmlistCell = document.createElement('td');
-					const FMLISTButton = document.createElement('a');
-					const fmlistIcon = document.createElement('i');
+				// Polarization column removed per user request
 
-					// Set the icon class and add the hover effect class
-					fmlistIcon.className = 'fas fa-pen-to-square icon-hover-effect';
-					fmlistIcon.style.cursor = 'pointer';
+				// LM-004: ERP not provided by fxdetails2 API, hide this cell
+				if (erp !== undefined && erp !== null && erp > 0) {
+					const erpCell = document.createElement('td');
+					erpCell.innerText = `${erp.toFixed(2)} kW`;
+					erpCell.style.maxWidth = '100px';
+					erpCell.style.width = '100px';
+					erpCell.style.paddingLeft = '5px';
+					erpCell.style.paddingRight = '5px';
+					erpCell.style.color = 'var(--livemap-text)';
+					erpCell.style.textAlign = 'right';
+					erpCell.style.overflow = 'hidden';
+					erpCell.style.whiteSpace = 'nowrap';
+					erpCell.style.textOverflow = 'ellipsis';
 
-					// Append the icon to the button
-					FMLISTButton.appendChild(fmlistIcon);
-					FMLISTButton.style.textDecoration = 'none';
-					FMLISTButton.title = t('plugin.livemapPlugin.entryFMLISTLogbook');
+					if (erp < 0.5) {
+						// ERP less than 0.5 kW, set background color to purple
+						erpCell.style.backgroundColor = '#7800FF';
+					} else if (erp >= 0.5 && erp < 5.0) {
+						// ERP between 0.5 kW and 5.0 kW, set background color to blue
+						erpCell.style.backgroundColor = '#238BFF';
+					} else if (erp >= 5.0) {
+						// ERP greater than or equal to 5.0 kW, set background color to dark blue
+						erpCell.style.backgroundColor = '#0000FF';
+					}
 
-					// Append the button to the table cell
-					fmlistCell.appendChild(FMLISTButton);
-					fmlistCell.style.paddingLeft = '10px';
-					fmlistCell.style.paddingRight = '20px';
-					fmlistCell.style.width = '5px';
-					fmlistCell.style.maxWidth = '5px';
-					fmlistCell.style.textAlign = 'left';
-
-					// Append the cell to the row
-					row.appendChild(fmlistCell);
-				            		
-					const emptyRow = document.createElement('tr');
-					const emptyCell = document.createElement('td');
-					emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
-					emptyCell.style.height = '2px'; // Höhe der Leerzeile
-					emptyRow.appendChild(emptyCell);
-
-					
-					// Event listener for button click
-					FMLISTButton.addEventListener("click", function () {
-						if (id > 0) {
-							
-							const distanceBetweenPoints = calculateDistance(txposLat, txposLon, lat, lon);	
-							const distance = `${distanceBetweenPoints.toFixed(0)}`;	
-							
-							const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, lat, lon);	
-							const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;	
-							
-							// Check if the popup window is already open
-							if (isOpenFMLIST && FMLISTWindow && !FMLISTWindow.closed) {
-								// Close if already open
-								FMLISTWindow.close();
-								isOpenFMLIST = false;
-							} else {
-								// Open if not already open
-								openFMLISTPage(id, distance, azimuth, itu);
-								isOpenFMLIST = true;
-							}
-						} else {
-							sendToast('error', t('plugin.livemap'), t('plugin.livemapPlugin.isNotCompatibleDatabase'), false, false);
-						}
-					});
-					
+					// Append the ERP cell to the row
+					row.appendChild(erpCell);
 				}
-				
+							
 				// Append the row to the table
 				table.appendChild(row);
 				
@@ -1454,14 +1113,16 @@ function receiveGPS() {;
         stationListContainer.appendChild(table);
         stationListContainer.style.width = `${iframeContainer.offsetWidth}px`;
 
-		// Allow clicking on the city cells to display more stations from the same city
+		// LM-004: City cell click functionality disabled - new API doesn't provide lat/lon coordinates
+		// This feature would require additional API endpoint or data to re-enable
+		/*
 		const cityCells = table.querySelectorAll('td:nth-child(5)');
 		cityCells.forEach(cell => {
 			cell.style.cursor = 'pointer';
 			
 			if (picode !== '?' && foundPI) {
 				
-				const cityToDisplay = cell.innerText.split(' [')[0]; // Define cityToDisplay here
+				const cityToDisplay = cell.innerText.split(' [')[0];
 				const cityStation = allStations.find(station => station.city === cityToDisplay);
 				
 				if (!cityStation  && !station.pi) {
@@ -1471,10 +1132,9 @@ function receiveGPS() {;
 
 				const distanceToCity = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);
 
-				// Filter and sort the stations of the selected city by ERP in descending order
 				const stationsOfCity = allStations
 					.filter(station => station.city === cityToDisplay)
-					.sort((a, b) => b.erp - a.erp); // Sorting in descending order based on ERP
+					.sort((a, b) => b.erp - a.erp);
 
 				// Clear the table before displaying stations from the selected city
 				table.innerHTML = '';
@@ -1492,41 +1152,6 @@ function receiveGPS() {;
 						} else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
 							row.classList.add('bg-color-1');
 						}
-
-						// Create a cell with a link to the station stream
-						const streamCell = document.createElement('td');
-						const streamLink = document.createElement('a');
-						const playIcon = document.createElement('i');
-						playIcon.className = 'fas icon-hover-effect';
-						playIcon.style.cursor = 'pointer';
-
-                        // Check if this station is currently playing
-                        if (currentStreamId === id) {
-                            playIcon.classList.add('fa-square');
-                            playIcon.style.color = 'white';
-                        } else {
-                            playIcon.classList.add('fa-play');
-                        }
-
-						streamLink.appendChild(playIcon);
-                        // Modified stream link behavior
-						// streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-                        streamLink.href = '#';
-                        streamLink.onclick = (e) => {
-                            e.preventDefault();
-                            handleStreamClick(id, station.station, playIcon);
-                        };
-
-						streamLink.style.color = 'green';
-						streamLink.style.textDecoration = 'none';
-						streamLink.title = t('plugin.livemapPlugin.playLivestream');
-						streamCell.appendChild(streamLink);
-						streamCell.style.paddingLeft = '10px';
-						streamCell.style.paddingRight = '10px';
-						streamCell.style.width = '5px';
-						streamCell.style.maxWidth = '5px';
-						streamCell.style.textAlign = 'left';
-						row.appendChild(streamCell);
 
 						const freqCellStation = document.createElement('td');
 						freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
@@ -1705,67 +1330,6 @@ function receiveGPS() {;
 
 						row.appendChild(erpCell);
 
-						if (FMLIST_OM_ID !== '' && stationid === station.id) {
-				
-							const fmlistCell = document.createElement('td');
-							const FMLISTButton = document.createElement('a');
-							const fmlistIcon = document.createElement('i');
-							
-							// Set the icon class and add the hover effect class
-							fmlistIcon.className = 'fas fa-pen-to-square icon-hover-effect';
-							fmlistIcon.style.cursor = 'pointer';
-
-							// Append the icon to the button
-							FMLISTButton.appendChild(fmlistIcon);
-							FMLISTButton.style.textDecoration = 'none';
-							FMLISTButton.title = t('plugin.livemapPlugin.entryFMLISTLogbook');
-
-							// Append the button to the table cell
-							fmlistCell.appendChild(FMLISTButton);
-							fmlistCell.style.paddingLeft = '10px';
-							fmlistCell.style.paddingRight = '20px';
-							fmlistCell.style.width = '5px';
-							fmlistCell.style.maxWidth = '5px';
-							fmlistCell.style.textAlign = 'left';
-							row.appendChild(fmlistCell);
-											            
-							// Append the row to the table
-							table.appendChild(row);
-			
-							const emptyRow = document.createElement('tr');
-							const emptyCell = document.createElement('td');
-							emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
-							emptyCell.style.height = '2px'; // Höhe der Leerzeile
-							emptyRow.appendChild(emptyCell);
-							table.appendChild(emptyRow);
-					
-							// Event listener for button click
-							FMLISTButton.addEventListener("click", function () {
-								if (id > 0) {
-							
-									const distanceBetweenPoints = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);	
-									const distance = `${distanceBetweenPoints.toFixed(0)}`;	
-							
-									const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);	
-									const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;	
-							
-									// Check if the popup window is already open
-									if (isOpenFMLIST && FMLISTWindow && !FMLISTWindow.closed) {
-										// Close if already open
-										FMLISTWindow.close();
-										isOpenFMLIST = false;
-									} else {
-										// Open if not already open
-										openFMLISTPage(id, distance, azimuth, itu);
-										isOpenFMLIST = true;
-									}
-								} else {
-                    sendToast('error', t('plugin.livemap'), t('plugin.livemapPlugin.isNotCompatibleDatabase'), false, false);
-								}
-							});
-					
-						}
-						
 						// Append the row to the table
 						table.appendChild(row);
             
@@ -1778,7 +1342,7 @@ function receiveGPS() {;
 						emptyRow.appendChild(emptyCell);
 						table.appendChild(emptyRow);
 					}
-				});
+					});
 			}
 
 			// onclick-Ereignis setzen, sodass derselbe Code auch bei einem Klick ausgeführt wird
@@ -1815,41 +1379,6 @@ function receiveGPS() {;
 						} else if (picode === pi && parseFloat(freq) === parseFloat(station.freq)) {
 							row.classList.add('bg-color-1');
 						}
-
-						// Create a cell with a link to the station stream
-						const streamCell = document.createElement('td');
-						const streamLink = document.createElement('a');
-						const playIcon = document.createElement('i');
-						playIcon.className = 'fas icon-hover-effect';
-						playIcon.style.cursor = 'pointer';
-
-            // Check if this station is currently playing
-            if (currentStreamId === id) {
-                playIcon.classList.add('fa-square');
-                playIcon.style.color = 'white';
-            } else {
-                playIcon.classList.add('fa-play');
-            }
-
-						streamLink.appendChild(playIcon);
-            // Modified stream link behavior
-						// streamLink.href = `javascript:window.open('https://fmscan.org/stream.php?i=${id}', 'newWindow', 'width=800,height=160');`;
-            streamLink.href = '#';
-            streamLink.onclick = (e) => {
-                e.preventDefault();
-                handleStreamClick(id, station.station, playIcon);
-            };
-
-						streamLink.style.color = 'green';
-						streamLink.style.textDecoration = 'none';
-						streamLink.title = t('plugin.livemapPlugin.playLivestream');
-						streamCell.appendChild(streamLink);
-						streamCell.style.paddingLeft = '10px';
-						streamCell.style.paddingRight = '10px';
-						streamCell.style.width = '5px';
-						streamCell.style.maxWidth = '5px';
-						streamCell.style.textAlign = 'left';
-						row.appendChild(streamCell);
 
 						const freqCellStation = document.createElement('td');
 						freqCellStation.innerText = `${station.freq.toFixed(2)} MHz`;
@@ -2028,67 +1557,6 @@ function receiveGPS() {;
 
 						row.appendChild(erpCell);
 						
-						if (FMLIST_OM_ID !== '') {
-				
-							const fmlistCell = document.createElement('td');
-							const FMLISTButton = document.createElement('a');
-							const fmlistIcon = document.createElement('i');
-							
-							// Set the icon class and add the hover effect class
-							fmlistIcon.className = 'fas fa-pen-to-square icon-hover-effect';
-							fmlistIcon.style.cursor = 'pointer';
-
-							// Append the icon to the button
-							FMLISTButton.appendChild(fmlistIcon);
-							FMLISTButton.style.textDecoration = 'none';
-							FMLISTButton.title = t('plugin.livemapPlugin.entryFMLISTLogbook');
-
-							// Append the button to the table cell
-							fmlistCell.appendChild(FMLISTButton);
-							fmlistCell.style.paddingLeft = '10px';
-							fmlistCell.style.paddingRight = '20px';
-							fmlistCell.style.width = '5px';
-							fmlistCell.style.maxWidth = '5px';
-							fmlistCell.style.textAlign = 'left';
-							row.appendChild(fmlistCell);
-											            
-							// Append the row to the table
-							table.appendChild(row);
-			
-							const emptyRow = document.createElement('tr');
-							const emptyCell = document.createElement('td');
-							emptyCell.colSpan = 7; // Anzahl der Spalten anpassen
-							emptyCell.style.height = '2px'; // Höhe der Leerzeile
-							emptyRow.appendChild(emptyCell);
-							table.appendChild(emptyRow);
-					
-							// Event listener for button click
-							FMLISTButton.addEventListener("click", function () {
-								if (id > 0) {
-							
-									const distanceBetweenPoints = calculateDistance(txposLat, txposLon, cityStation.lat, cityStation.lon);	
-									const distance = `${distanceBetweenPoints.toFixed(0)}`;	
-							
-									const azimuthBetweenPoints = calculateAzimuth(txposLat, txposLon, cityStation.lat, cityStation.lon);	
-									const azimuth = `${azimuthBetweenPoints.toFixed(0)}`;	
-							
-									// Check if the popup window is already open
-									if (isOpenFMLIST && FMLISTWindow && !FMLISTWindow.closed) {
-										// Close if already open
-										FMLISTWindow.close();
-										isOpenFMLIST = false;
-									} else {
-										// Open if not already open
-										openFMLISTPage(id, distance, azimuth, itu);
-										isOpenFMLIST = true;
-									}
-								} else {
-                    sendToast('error', t('plugin.livemap'), t('plugin.livemapPlugin.isNotCompatibleDatabase'), false, false);
-								}
-							});
-					
-						}
-						
 
 						table.appendChild(row);
             
@@ -2102,8 +1570,10 @@ function receiveGPS() {;
 						table.appendChild(emptyRow);
 					};
 				});	
-			};	
+			};
 		});
+		*/
+		// End of disabled city cell click functionality
 	};
 
 	// Function to open (or create) the IndexedDB database
@@ -2169,95 +1639,11 @@ function receiveGPS() {;
         });
     }
 
-    // Main async function to check PI code and station ID with caching
-    async function checkPicodeAndID(freq, picode, stationid) {
-        const db = await openCacheDB();
-        const cacheKey = `freq:${freq}`;
-
-        // Check if data is already cached
-        const cachedData = await getCachedData(db, cacheKey);
-        if (cachedData) {
-            debugLog('Returning cached data:', cachedData);
-            return searchInLocations(cachedData.data, picode, stationid, freq);  // Search within cached data
-        }
-
-        // If no cache found, fetch data from the API
-        const response = await fetch(`${corsAnywhereUrl}https://maps.fmdx.org/api/?freq=${freq}`)
-          .catch(error => {
-              return null;
-          });
-        if (!response || !response.ok) {
-            debugLog('Error fetching data from maps.fmdx.org API:', response ? `Status: ${response.status}` : 'No response');
-            // throw new Error(`HTTP error! Status: ${response.status}`);
-            return { foundPI: false, foundID: false, coordinates: null };
-        }
-        const data = await response.json();
-
-        // Cache the fetched data
-        await cacheData(db, cacheKey, data);
-
-        // Process and return the data
-        return searchInLocations(data, picode, stationid, freq);
-    }
-
-    // Function to search for PI code and station ID within the data
-    function searchInLocations(data, picode, stationid, freq) {
-        foundPI = false;
-        foundID = false;
-
-
-        if (typeof data.locations === 'object') {
-            for (const key in data.locations) {
-                const location = data.locations[key];
-                const stations = location.stations;
-
-                if (Array.isArray(stations)) {
-                    for (const station of stations) {
-                        let frequency = station.freq;
-                        let formattedFrequency = frequency.toFixed(3);
-
-                        if (formattedFrequency === freq) {
-                            // Check for matching PI code
-                            if (station.pi === picode) {
-                                foundPI = true;
-                            }
-                            // Check for matching station ID
-                            if (station.id === parseInt(stationid, 10)) {
-                                foundID = true;
-                                coordinates = { lat: location.lat, lon: location.lon };
-                            }
-
-                            // Break the loop if both PI and ID are found
-                            if (foundPI && foundID) break;
-                        }
-                    }
-                }
-
-                // Exit outer loop if a match is found
-                if (foundPI || foundID) break;
-            }
-        }
-
-        debugLog(`Found PI: ${foundPI}, Found ID: ${foundID}, Coordinates: ${JSON.stringify(coordinates)}`);
-        return { foundPI, foundID, coordinates };
-    }
-
     // Async function to create or update the iframe based on the provided data
     async function openOrUpdateIframe(picode, freq, stationid, station, city, distance, ps, itu, pol, radius) {
 		
         if (!LiveMapActive) return;
 
-        foundPI = false; // Initialize foundPI
-        foundID = false; // Initialize foundID
-        
-        if ((picode !== '?' && picode !== lastPicode) || (stationid && stationid !== lastStationId)) {
-            let result = await checkPicodeAndID(freq, picode, stationid);
-            foundPI = result.foundPI;
-            foundID = result.foundID;
-            coordinates = result.coordinates;
-            debugLog(`openOrUpdateIframe - Found PI: ${foundPI}, Found ID: ${foundID}, Coordinates:`, coordinates);
-        }
-        
         // Handle Latitude and Longitude assignment
         if (typeof Latitude === 'undefined' || typeof Longitude === 'undefined') {
             LAT = localStorage.getItem('qthLatitude') || '0';
@@ -2267,31 +1653,36 @@ function receiveGPS() {;
              LON = Longitude;
         }
 
-        const txposswitchTXPOS = document.getElementById('txposswitchTXPOS');
+        // Reference position for the map/table (receiver's location) —
+        // formerly could be overridden by a TXPOS toggle, which has been removed (dead/never-rendered feature).
+        const txposLat = LAT;
+        const txposLon = LON;
 
-        let txposLat, txposLon;
-        
-        if (txposswitchTXPOS && txposswitchTXPOS.checked) {
-            txposLat = localStorage.getItem('txposLat') || '0';
-            txposLon = localStorage.getItem('txposLon') || '0';
-        } else {
-            txposLat = LAT;
-            txposLon = LON;
-        }
-        
         let url;
-        // if (stationid) {
-        //     url = `https://maps.fmdx.org/#qth=${LAT},${LON}&id=${stationid}&findId=*`;
-        // } else
-        if (picode !== '?' && foundPI) {
-            // url = `https://maps.fmdx.org/#qth=${LAT},${LON}&freq=${freq}&findPi=${picode}`;
-            url = `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freq}&pi=${picode}&pos=${LAT},${LON}`;
+        // LM-006: Convert frequency from MHz to kHz for API
+        const freqKHz = Math.round(parseFloat(freq) * 1000);
+
+        // Validate the PI code directly against the live fxmap.php API rather than a
+        // separate lookup source, so newly-added stations aren't rejected just for being
+        // absent from some other dataset. Fall back to '?' only if the API itself
+        // reports the PI code as invalid (its "5.06" error response).
+        let piCodeValid = false;
+        let piCodeCheckUrl;
+        if (picode && picode !== '?') {
+            piCodeCheckUrl = `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freqKHz}&pi=${picode}&pos=${LAT},${LON}`;
+            const piCheckResponse = await fetch(piCodeCheckUrl);
+            if (piCheckResponse.ok) {
+                const piCheckText = await piCheckResponse.text();
+                piCodeValid = !piCheckText.includes('5.06'); // API'nin kendi hata metnine bakılıyor
+            }
+        }
+
+        if (piCodeValid) {
+            url = radius === 'none' ? piCodeCheckUrl : `${piCodeCheckUrl}&r=${radius}`;
         } else if (radius === 'none') {
-            // url = `https://maps.fmdx.org/#lat=${txposLat}&lon=${txposLon}&freq=${freq}`;
-            url = `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freq}&pi=FMSCANCOM&pos=${txposLat},${txposLon}`;
+            url = `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freqKHz}&pi=?&pos=${txposLat},${txposLon}`;
         } else {
-            // url = `https://maps.fmdx.org/#lat=${txposLat}&lon=${txposLon}&freq=${freq}&r=${radius}`;
-            url = `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freq}&pi=FMSCANCOM&pos=${txposLat},${txposLon}&r=${radius}`;
+            url = `https://api.fmlist.org/fmscan.com/fxmap.php?fx=${freqKHz}&pi=?&pos=${txposLat},${txposLon}&r=${radius}`;
         }
 
         const uniqueUrl = `${url}&t=${new Date().getTime()}`;
@@ -2300,7 +1691,7 @@ function receiveGPS() {;
         function createAndInsertIframe() {
             const newIframe = createIframe();
             const header = createIframeHeader();
-            const footer = createIframeFooter(coordinates);
+            const footer = createIframeFooter();
             const closeButton = createCloseButton();
             const toggleButton = createToggleButton(); // Create the blue toggle button
             newIframe.src = uniqueUrl;
@@ -2319,11 +1710,14 @@ function receiveGPS() {;
                 iframeContainer.style.opacity = '0';
                 iframeContainer.style.transition = 'opacity 0.5s';
                 iframeContainer.style.zIndex = '1000';
+                iframeContainer.style.display = 'flex';
+                iframeContainer.style.flexDirection = 'column';
+                iframeContainer.style.overflow = 'hidden';
                 iframeContainer.appendChild(header);
+                iframeContainer.appendChild(newIframe);
                 iframeContainer.appendChild(footer);
                 iframeContainer.appendChild(closeButton);
                 iframeContainer.appendChild(toggleButton); // Append the toggle button to the container
-                iframeContainer.appendChild(newIframe);
                 document.body.appendChild(iframeContainer);
                 addDragFunctionality(iframeContainer);
                 addResizeFunctionality(iframeContainer);
@@ -2363,7 +1757,6 @@ function receiveGPS() {;
             lastStationId = stationid;
             lastFreq = freq;
             await fetchAndCacheStationData(freq, radius, picode, txposLat, txposLon, stationid, pol, foundPI);
-            updateToggleswitchTXPOS(stationid);
         }
     }
 
@@ -2483,8 +1876,6 @@ function receiveGPS() {;
 
             // Check if the frequency has changed
             if (freq !== previousFreq) {
-                
-                stopStream(); // Stop stream on frequency change
 
                 if (frequencyElement) {
                     freq_save = previousFreq;
@@ -2605,16 +1996,26 @@ function receiveGPS() {;
         const resizer = document.createElement('div');
         resizer.id = 'resizer';
         resizer.classList.add('tooltip1'); // Klasse hinzufügen
-        resizer.setAttribute('data-tooltip', t('plugin.livemapPlugin.resizeWindow')); // Daten-Attribut setzen
+        resizer.setAttribute('data-tooltip', t('plugin.livemapPlugin.resizeWindow'));
         resizer.style.width = '10px';
         resizer.style.height = '10px';
-        resizer.style.background = 'blue';
+        resizer.style.background = 'var(--livemap-accent)';
         resizer.style.cursor = 'nwse-resize';
         resizer.style.position = 'absolute';
         resizer.style.right = '0';
         resizer.style.bottom = '0';
         resizer.style.zIndex = '1000';
+        resizer.style.borderRadius = '0 0 15px 0';
+        resizer.style.transition = 'background-color 0.3s ease';
         element.appendChild(resizer);
+        
+        resizer.addEventListener('mouseenter', () => {
+            resizer.style.background = 'var(--livemap-hover)';
+        });
+        
+        resizer.addEventListener('mouseleave', () => {
+            resizer.style.background = 'var(--livemap-accent)';
+        });
 
         resizer.addEventListener('mousedown', initResize);
 
@@ -2630,11 +2031,8 @@ function receiveGPS() {;
             if (newWidth > 100 && newHeight > 100) {
                 element.style.width = newWidth + 'px';
                 element.style.height = newHeight + 'px';
-                const iframe = element.querySelector('iframe');
-                if (iframe) {
-                    iframe.width = (newWidth - 20) + 'px';
-                    iframe.height = (newHeight - 85) + 'px';
-                }
+                // Note: the iframe itself does not need manual width/height here —
+                // it fills its container via CSS (flex-grow: 1, width/height: 100%).
 
                 if (stationListContainer) {
                     stationListContainer.style.width = `${newWidth}px`;
@@ -2648,8 +2046,8 @@ function receiveGPS() {;
             const newHeight = parseInt(element.style.height);
             localStorage.setItem('iframeWidth', newWidth);
             localStorage.setItem('iframeHeight', newHeight);
-            iframeWidth = newWidth - 20;
-            iframeHeight = newHeight - 85;
+            iframeWidth = newWidth;
+            iframeHeight = newHeight;
             window.removeEventListener('mousemove', resize);
             window.removeEventListener('mouseup', stopResize);
         }
@@ -2711,7 +2109,6 @@ function receiveGPS() {;
                   }, 200);
                 } else {
                   // Deactivation: Remove the "active" class
-                  stopStream(); // Stop stream on deactivate
                   $pluginButton.removeClass("active");
                   debugLog("LIVEMAP deactivated.");
                   if (iframeContainer) {
