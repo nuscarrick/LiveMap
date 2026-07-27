@@ -48,7 +48,7 @@ const updateInfo = true; 			// Enable or disable version check
     let isTuneAuthenticated;
     let ipAddress;
 
-    const plugin_path = 'https://raw.githubusercontent.com/nuscarrick/LiveMap/';
+    const plugin_path = 'https://raw.githubusercontent.com/nuscarrick/RadioDataCenter-LiveMap/';
     const plugin_JSfile = 'main/LiveMap/livemap.js'
     const plugin_name = 'Livemap';
     const PluginUpdateKey = `${plugin_name}_lastUpdateNotification`; // Unique key for localStorage
